@@ -194,18 +194,23 @@ machines:
 - **Every push and pull request:** runs the tests on all three systems, then builds the apps
   for Windows (x64), macOS (Apple Silicon and Intel) and Linux (x64). Download them from the
   run's **Artifacts** section on the repository's *Actions* tab.
-- **Pushing a version tag:** also publishes everything as a GitHub Release that players can
-  download from the repository's *Releases* page:
+- **Publishing a release:** builds everything and publishes it as a GitHub Release that
+  players can download from the repository's *Releases* page. There are two ways to start one:
+  - **From the website:** open the repository's **Actions** tab, choose **Build** on the
+    left, click **Run workflow**, type a version such as `1.0.0`, and click the green
+    **Run workflow** button. The `v1.0.0` tag is created for you.
+  - **With git:** push a version tag.
 
-  ```bash
-  git tag v1.0.0
-  ```
+    ```bash
+    git tag v1.0.0
+    ```
 
-  ```bash
-  git push origin v1.0.0
-  ```
+    ```bash
+    git push origin v1.0.0
+    ```
 
-  The tag (without the `v`) becomes the version shown in the installers.
+  The version (without the `v`) is shown in the installers. Each version can only be
+  released once, so use a new number, such as `1.0.1`, for the next one.
 
 The Linux packages are built on Ubuntu 22.04 so the `.deb` installs on that release and
 newer ones (and on Debian 12 or later).
