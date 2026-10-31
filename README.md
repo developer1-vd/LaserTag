@@ -10,28 +10,21 @@ Internet or your home network.
 Everything is drawn at a low 480x360 resolution and scaled up with chunky pixels and CRT
 scanlines, using a hand-drawn bitmap font and chiptune-style sound effects.
 
-## Requirements
+## Quick start
 
-- Java 17 or newer (JDK, to build)
+You need a **JDK, version 17 or newer** (check with `javac -version`). Nothing else.
 
-## Running
+macOS / Linux:
 
 ```bash
 ./run.sh
 ```
 
-On Windows, double-click `run.bat` (or run it from a terminal). Both scripts compile the
-game with `javac` and start it. No other tools needed.
+Windows: double-click `run.bat`.
 
-If you have Maven you can also build a jar and run the tests:
-
-```bash
-mvn package
-```
-
-```bash
-java -jar target/lasertag.jar
-```
+The script compiles the game and starts it. See **[BUILDING.md](BUILDING.md)** for
+installing Java, building by hand or with Maven, running the tests, making a stand-alone
+app to share, and troubleshooting.
 
 ## How to play
 
