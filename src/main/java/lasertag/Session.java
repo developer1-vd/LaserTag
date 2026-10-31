@@ -24,8 +24,13 @@ interface Session {
         return false;
     }
 
-    /** Informational line for the HUD (e.g. the address to join), or null. */
+    /** Short informational line for the HUD (e.g. the address to join), or null. */
     String status();
+
+    /** Longer connection details for the info screen (hold Tab). */
+    default java.util.List<String> details() {
+        return java.util.List.of();
+    }
 
     /** Non-null once the session has failed (e.g. lost connection). */
     String error();

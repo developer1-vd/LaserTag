@@ -103,10 +103,14 @@ final class LanDiscovery {
                     socket.receive(packet);
                     String[] t = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8).split(" ");
                     if (t.length < 6 || !t[0].equals("LASERTAG") || !t[1].equals(Rules.PROTOCOL)) continue;
-                    String address = packet.getAddress().getHostAddress();
+                    InetAddress from = packet.getAddress();
                     int port = Integer.parseInt(t[2]);
-                    games.put(address + ":" + port, new Game(URLDecoder.decode(t[5], StandardCharsets.UTF_8),
-                            address, port, URLDecoder.decode(t[4], StandardCharsets.UTF_8),
+                    String host = URLDecoder.decode(t[5], StandardCharsets.UTF_8);
+                    // A host on this machine is heard via loopback and its LAN address; list it once.
+                    String key = host + ":" + port;
+                    Game existing = games.get(key);
+                    String address = from.isLoopbackAddress() && existing != null ? existing.address() : from.getHostAddress();
+                    games.put(key, new Game(host, address, port, URLDecoder.decode(t[4], StandardCharsets.UTF_8),
                             Integer.parseInt(t[3]), System.currentTimeMillis()));
                 } catch (SocketTimeoutException ignored) {
                     // loop to check running

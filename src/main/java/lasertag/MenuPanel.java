@@ -1,315 +1,298 @@
 package lasertag;
 
-import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Component;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.GridLayout;
-import java.awt.Insets;
-import java.awt.RenderingHints;
+import java.awt.Rectangle;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+import java.util.function.IntConsumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.prefs.Preferences;
-import javax.swing.BorderFactory;
-import javax.swing.DefaultListModel;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JSpinner;
-import javax.swing.JTextField;
-import javax.swing.ListSelectionModel;
-import javax.swing.SpinnerNumberModel;
-import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
-/** Title screen: player settings plus offline and online game launchers. */
-final class MenuPanel extends JPanel {
-    private static final Color BG = new Color(0x07070F);
-    private static final Color CARD = new Color(0x10142A);
-    private static final Color TEXT = new Color(0xC8CEE6);
-    private static final Color ACCENT = new Color(0x2DE2E6);
-    private static final Color PINK = new Color(0xFF3BF2);
-    private static final Font LABEL = new Font(Font.SANS_SERIF, Font.BOLD, 13);
+/** Arcade-style title screen. Arrow keys / mouse to choose, Enter or click to start, type to edit fields. */
+final class MenuPanel extends RetroScreen {
+    private static final Color GREY = new Color(0xC2C3C7);
+    private static final Color DIM = new Color(0x83769C);
+    private static final Color CYAN = new Color(0x29ADFF);
+    private static final Color YELLOW = new Color(0xFFEC27);
+    private static final Color RED = new Color(0xFF004D);
+    private static final Color GREEN = new Color(0x00E436);
+    private static final int LINE = 12, LEFT = 28, VALUE_X = 138;
 
-    private final LaserTag app;
-    private final Preferences prefs = Preferences.userNodeForPackage(MenuPanel.class);
+    private enum Kind { ACTION, CHOICE, TEXT }
 
-    private final JTextField nameField = field(prefs.get("name", System.getProperty("user.name", "Player")));
-    private final JComboBox<String> mapBox = new JComboBox<>(Arena.NAMES);
-    private final JComboBox<Difficulty> difficultyBox = new JComboBox<>(Difficulty.values());
-    private final JSpinner botsSpinner = new JSpinner(new SpinnerNumberModel(3, 0, Rules.MAX_PLAYERS - 1, 1));
-    private final JTextField portField = field(Integer.toString(prefs.getInt("port", Rules.DEFAULT_PORT)));
-    private final JTextField addressField = field(prefs.get("address", "localhost"));
-    private final DefaultListModel<LanDiscovery.Game> lanModel = new DefaultListModel<>();
-    private final JList<LanDiscovery.Game> lanList = new JList<>(lanModel);
-    private final JLabel statusLabel = new JLabel(" ", SwingConstants.CENTER);
-    private final Timer lanRefresh;
-    private LanDiscovery.Listener listener;
-    private boolean busy;
+    /** One selectable line of the menu. */
+    private static final class Item {
+        final Kind kind;
+        final String label, help;
+        Runnable action;
+        IntConsumer change;
+        Supplier<String> value;
+        StringBuilder text;
+        int maxLength;
+        boolean keepCase;
+        Predicate<Character> allowed;
+        Color color = Color.WHITE;
+        Rectangle bounds = new Rectangle();
 
-    MenuPanel(LaserTag app) {
-        this.app = app;
-        setBackground(BG);
-        setLayout(new GridBagLayout());
-
-        mapBox.setSelectedIndex(Math.floorMod(prefs.getInt("map", 0), Arena.count()));
-        difficultyBox.setSelectedItem(Difficulty.valueOf(prefs.get("difficulty", Difficulty.NORMAL.name())));
-        botsSpinner.setValue(Math.max(0, Math.min(Rules.MAX_PLAYERS - 1, prefs.getInt("bots", 3))));
-        for (JComponent c : new JComponent[] {mapBox, difficultyBox, botsSpinner}) style(c);
-
-        GridBagConstraints gc = new GridBagConstraints();
-        gc.gridx = 0;
-        gc.gridy = 0;
-        gc.insets = new Insets(0, 0, 18, 0);
-        add(new Title(), gc);
-
-        JPanel cards = new JPanel(new GridLayout(1, 3, 18, 0));
-        cards.setOpaque(false);
-        cards.add(settingsCard());
-        cards.add(offlineCard());
-        cards.add(onlineCard());
-        gc.gridy = 1;
-        gc.insets = new Insets(0, 24, 12, 24);
-        add(cards, gc);
-
-        statusLabel.setForeground(new Color(0xFF6B6B));
-        statusLabel.setFont(LABEL);
-        gc.gridy = 2;
-        add(statusLabel, gc);
-
-        JLabel help = new JLabel("<html><center>Tag opponents with your laser. Beams ricochet off walls twice. "
-                + "Each shot drains energy, which recharges over time.<br>Tagged players respawn after "
-                + (int) Rules.TAGGED_TIME + "s with a short shield. First to " + Rules.SCORE_LIMIT
-                + " tags or most tags in " + (int) Rules.ROUND_TIME / 60 + " minutes wins the round.</center></html>");
-        help.setForeground(new Color(0x7F8AB0));
-        help.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        gc.gridy = 3;
-        add(help, gc);
-
-        lanList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        lanList.setBackground(new Color(0x0A0E1E));
-        lanList.setForeground(TEXT);
-        lanList.addListSelectionListener(e -> {
-            LanDiscovery.Game g = lanList.getSelectedValue();
-            if (g != null) {
-                addressField.setText(g.address());
-                portField.setText(Integer.toString(g.port()));
-            }
-        });
-        lanList.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2 && lanList.getSelectedValue() != null) join();
-            }
-        });
-        lanRefresh = new Timer(1000, e -> refreshLan());
-    }
-
-    // ---------------------------------------------------------------- layout
-
-    private JPanel settingsCard() {
-        JPanel p = card("PLAYER", ACCENT);
-        row(p, "Name", nameField);
-        row(p, "Arena", mapBox);
-        row(p, "Bots", botsSpinner);
-        row(p, "Bot skill", difficultyBox);
-        filler(p);
-        return p;
-    }
-
-    private JPanel offlineCard() {
-        JPanel p = card("OFFLINE", new Color(0x3BFF7A));
-        button(p, "Solo vs Bots", "Mouse aims - WASD moves - click / Space fires", this::playSolo);
-        button(p, "2 Players, 1 Keyboard", "P1: WASD + Space    P2: Arrows + Enter", this::playSplit);
-        filler(p);
-        return p;
-    }
-
-    private JPanel onlineCard() {
-        JPanel p = card("ONLINE", PINK);
-        row(p, "Port", portField);
-        button(p, "Host Game", "Others join using your IP; bots fill empty slots", this::host);
-        row(p, "Host IP", addressField);
-        button(p, "Join Game", null, this::join);
-        JLabel lan = new JLabel("Games on your network (double-click to join)");
-        lan.setForeground(new Color(0x7F8AB0));
-        lan.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-        add(p, lan, 0);
-        JScrollPane scroll = new JScrollPane(lanList);
-        scroll.setPreferredSize(new Dimension(280, 70));
-        scroll.setBorder(BorderFactory.createLineBorder(new Color(0x2A3050)));
-        add(p, scroll, 4);
-        return p;
-    }
-
-    private static JPanel card(String title, Color color) {
-        JPanel p = new JPanel(new GridBagLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(CARD);
-                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
-                g2.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 140));
-                g2.setStroke(new BasicStroke(1.5f));
-                g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 16, 16);
-                g2.dispose();
-            }
-        };
-        p.setOpaque(false);
-        p.setBorder(BorderFactory.createEmptyBorder(14, 16, 16, 16));
-        p.setPreferredSize(new Dimension(320, 330));
-        JLabel l = new JLabel(title);
-        l.setForeground(color);
-        l.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
-        add(p, l, 10);
-        return p;
-    }
-
-    private static void add(JPanel p, Component c, int bottomGap) {
-        GridBagConstraints gc = new GridBagConstraints();
-        gc.gridx = 0;
-        gc.gridy = nextRow(p);
-        gc.gridwidth = 2;
-        gc.fill = GridBagConstraints.HORIZONTAL;
-        gc.weightx = 1;
-        gc.insets = new Insets(0, 0, bottomGap, 0);
-        p.add(c, gc);
-    }
-
-    /** Cards stack their contents in rows; this hands out the next free row index. */
-    private static int nextRow(JPanel p) {
-        Integer row = (Integer) p.getClientProperty("row");
-        int next = row == null ? 0 : row + 1;
-        p.putClientProperty("row", next);
-        return next;
-    }
-
-    private static void row(JPanel p, String label, JComponent field) {
-        GridBagConstraints gc = new GridBagConstraints();
-        gc.gridx = 0;
-        gc.gridy = nextRow(p);
-        gc.anchor = GridBagConstraints.WEST;
-        gc.insets = new Insets(4, 0, 4, 10);
-        JLabel l = new JLabel(label);
-        l.setForeground(TEXT);
-        l.setFont(LABEL);
-        l.setPreferredSize(new Dimension(70, 24));
-        p.add(l, gc);
-        gc.gridx = 1;
-        gc.fill = GridBagConstraints.HORIZONTAL;
-        gc.weightx = 1;
-        gc.insets = new Insets(4, 0, 4, 0);
-        p.add(field, gc);
-    }
-
-    private static void button(JPanel p, String text, String hint, Runnable action) {
-        JButton b = new JButton(text);
-        b.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 14));
-        b.setForeground(Color.WHITE);
-        b.setBackground(new Color(0x1E2650));
-        b.setFocusPainted(false);
-        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        b.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x3A4680)),
-                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
-        b.addActionListener(e -> action.run());
-        add(p, b, hint == null ? 10 : 2);
-        if (hint != null) {
-            JLabel l = new JLabel(hint);
-            l.setForeground(new Color(0x7F8AB0));
-            l.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-            add(p, l, 12);
+        Item(Kind kind, String label, String help) {
+            this.kind = kind;
+            this.label = label;
+            this.help = help;
         }
     }
 
-    private static void filler(JPanel p) {
-        GridBagConstraints gc = new GridBagConstraints();
-        gc.gridx = 0;
-        gc.gridy = nextRow(p);
-        gc.weighty = 1;
-        p.add(new JLabel(), gc);
+    private final LaserTag app;
+    private final Preferences prefs = Preferences.userNodeForPackage(MenuPanel.class);
+    private final Timer timer;
+    private final List<Item> items = new ArrayList<>();
+    private final List<Item> lanItems = new ArrayList<>();
+    private Item joinField;
+    private int selected;
+    private double clock, lanRefresh;
+    private String message;
+    private Color messageColor = RED;
+    private boolean busy;
+    private LanDiscovery.Listener listener;
+
+    private final StringBuilder name = new StringBuilder();
+    private final StringBuilder port = new StringBuilder();
+    private final StringBuilder address = new StringBuilder();
+    private int map, bots;
+    private Difficulty difficulty;
+    private final BufferedImage[] previews = new BufferedImage[Arena.count()];
+
+    MenuPanel(LaserTag app) {
+        this.app = app;
+        name.append(GameWorld.sanitizeName(prefs.get("name", System.getProperty("user.name", "Player"))));
+        filter(name, PixelFont::supports);
+        port.append(prefs.getInt("port", Rules.DEFAULT_PORT));
+        address.append(prefs.get("address", "localhost").toUpperCase());
+        map = Math.floorMod(prefs.getInt("map", 0), Arena.count());
+        bots = Math.max(0, Math.min(Rules.MAX_PLAYERS - 1, prefs.getInt("bots", 3)));
+        try {
+            difficulty = Difficulty.valueOf(prefs.get("difficulty", "NORMAL"));
+        } catch (IllegalArgumentException e) {
+            difficulty = Difficulty.NORMAL;
+        }
+        RetroScreen.scanlines = prefs.getBoolean("crt", true);
+        for (int i = 0; i < previews.length; i++) previews[i] = GamePanel.drawArena(new Arena(i), 150, 100);
+        buildItems();
+
+        addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                onKey(e);
+            }
+
+            @Override
+            public void keyTyped(KeyEvent e) {
+                onTyped(e.getKeyChar());
+            }
+        });
+        MouseAdapter mouse = new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int i = itemAt(e);
+                if (i >= 0 && i != selected) {
+                    selected = i;
+                    Sound.play(Sound.BLIP);
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                requestFocusInWindow();
+                int i = itemAt(e);
+                if (i < 0) return;
+                selected = i;
+                Item item = allItems().get(i);
+                if (item.kind == Kind.CHOICE) {
+                    double[] c = toCanvas(e.getX(), e.getY());
+                    change(item, c[0] < VALUE_X + 30 ? -1 : 1);
+                } else if (item.kind == Kind.ACTION) {
+                    activate(item);
+                }
+            }
+        };
+        addMouseListener(mouse);
+        addMouseMotionListener(mouse);
+        timer = new Timer(33, e -> {
+            clock += 0.033;
+            if ((lanRefresh -= 0.033) <= 0) {
+                lanRefresh = 0.5;
+                refreshLan();
+            }
+            repaint();
+        });
     }
 
-    private static JTextField field(String text) {
-        JTextField f = new JTextField(text, 12);
-        style(f);
-        f.setCaretColor(Color.WHITE);
-        return f;
+    private void buildItems() {
+        Item solo = action("SOLO VS BOTS", "YOU AGAINST BOTS. WASD MOVE, MOUSE AIM, CLICK FIRE.", this::playSolo);
+        solo.color = GREEN;
+        Item split = action("2 PLAYERS 1 KEYBOARD", "P1: WASD + SPACE   P2: ARROWS + ENTER   (PLUS BOTS)", this::playSplit);
+        split.color = GREEN;
+        Item host = action("HOST ONLINE GAME", "FRIENDS JOIN OVER THE INTERNET WITH YOUR CODE, OR ON YOUR WIFI.", this::host);
+        host.color = CYAN;
+        Item join = action("JOIN ONLINE GAME", "JOINS THE CODE OR ADDRESS TYPED IN 'JOIN' BELOW.", this::join);
+        join.color = CYAN;
+        items.add(solo);
+        items.add(split);
+        items.add(host);
+        items.add(join);
+
+        Item nameField = text("NAME", "TYPE YOUR NAME.", name, 14, PixelFont::supports);
+        nameField.keepCase = true;
+        items.add(nameField);
+        items.add(choice("ARENA", "PICK AN ARENA WITH LEFT / RIGHT.", () -> "< " + Arena.NAMES[map] + " >",
+                d -> map = Math.floorMod(map + d, Arena.count())));
+        items.add(choice("BOTS", "NUMBER OF BOTS. IN ONLINE GAMES THEY LEAVE WHEN PEOPLE JOIN.",
+                () -> "< " + bots + " >", d -> bots = Math.max(0, Math.min(Rules.MAX_PLAYERS - 1, bots + d))));
+        items.add(choice("BOT SKILL", "HOW SHARP THE BOTS ARE.", () -> "< " + difficulty.label + " >",
+                d -> difficulty = Difficulty.values()[Math.floorMod(difficulty.ordinal() + d, Difficulty.values().length)]));
+        joinField = text("JOIN", "TYPE AN INTERNET CODE (XXXXX-XXXXX), IP ADDRESS OR HOSTNAME.", address, 40,
+                c -> c < 128 && Character.isLetterOrDigit(c) || c == '.' || c == '-' || c == ':');
+        items.add(joinField);
+        items.add(text("PORT", "TCP PORT FOR HOSTING / JOINING BY IP (DEFAULT " + Rules.DEFAULT_PORT + ").", port, 5,
+                Character::isDigit));
+        items.add(choice("CRT", "SCANLINES ON OR OFF (ALSO C IN GAME).",
+                () -> "< " + (RetroScreen.scanlines ? "ON" : "OFF") + " >", d -> RetroScreen.scanlines = !RetroScreen.scanlines));
+        Item quit = action("QUIT", "SEE YOU NEXT TIME!", () -> System.exit(0));
+        quit.color = DIM;
+        items.add(quit);
     }
 
-    private static void style(JComponent c) {
-        c.setBackground(new Color(0x0A0E1E));
-        c.setForeground(Color.WHITE);
-        c.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
+    private static Item action(String label, String help, Runnable run) {
+        Item i = new Item(Kind.ACTION, label, help);
+        i.action = run;
+        return i;
     }
 
-    // ---------------------------------------------------------------- actions
+    private static Item choice(String label, String help, Supplier<String> value, IntConsumer change) {
+        Item i = new Item(Kind.CHOICE, label, help);
+        i.value = value;
+        i.change = change;
+        return i;
+    }
+
+    private static Item text(String label, String help, StringBuilder sb, int max, Predicate<Character> allowed) {
+        Item i = new Item(Kind.TEXT, label, help);
+        i.text = sb;
+        i.maxLength = max;
+        i.allowed = allowed;
+        return i;
+    }
+
+    private static void filter(StringBuilder sb, Predicate<Character> allowed) {
+        for (int i = sb.length() - 1; i >= 0; i--) if (!allowed.test(sb.charAt(i))) sb.deleteCharAt(i);
+    }
+
+    private List<Item> allItems() {
+        List<Item> all = new ArrayList<>(items);
+        all.addAll(lanItems);
+        return all;
+    }
+
+    private Item current() {
+        List<Item> all = allItems();
+        return all.get(Math.min(selected, all.size() - 1));
+    }
+
+    // ---------------------------------------------------------------- lifecycle
 
     void onShow() {
         busy = false;
         listener = new LanDiscovery.Listener();
-        lanRefresh.start();
-        refreshLan();
+        timer.start();
+        SwingUtilities.invokeLater(this::requestFocusInWindow);
     }
 
     void onHide() {
-        lanRefresh.stop();
+        timer.stop();
         if (listener != null) listener.close();
         listener = null;
     }
 
-    void showError(String message) {
-        statusLabel.setForeground(new Color(0xFF6B6B));
-        statusLabel.setText(message == null ? " " : message);
+    void showError(String text) {
+        message = text == null ? null : text.toUpperCase();
+        messageColor = RED;
     }
 
-    private void refreshLan() {
-        if (listener == null) return;
-        List<LanDiscovery.Game> games = listener.games();
-        LanDiscovery.Game selected = lanList.getSelectedValue();
-        lanModel.clear();
-        games.forEach(lanModel::addElement);
-        if (selected != null) {
-            for (LanDiscovery.Game g : games) {
-                if (g.address().equals(selected.address()) && g.port() == selected.port()) lanList.setSelectedValue(g, false);
+    // ---------------------------------------------------------------- input
+
+    private void onKey(KeyEvent e) {
+        Item item = current();
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_UP -> move(-1);
+            case KeyEvent.VK_DOWN, KeyEvent.VK_TAB -> move(1);
+            case KeyEvent.VK_LEFT -> change(item, -1);
+            case KeyEvent.VK_RIGHT -> change(item, 1);
+            case KeyEvent.VK_ENTER -> {
+                if (item.kind == Kind.ACTION) activate(item);
+                else if (item.kind == Kind.CHOICE) change(item, 1);
+                else move(1);
             }
-        }
-        if (games.isEmpty()) {
-            lanList.setToolTipText(listener.available() ? "No games found yet" : "LAN discovery unavailable");
+            case KeyEvent.VK_BACK_SPACE -> {
+                if (item.kind == Kind.TEXT && item.text.length() > 0) item.text.setLength(item.text.length() - 1);
+            }
+            default -> { }
         }
     }
+
+    private void onTyped(char c) {
+        Item item = current();
+        if (item.kind != Kind.TEXT || c < 32 || c == 127) return;
+        if (item.text.length() < item.maxLength && item.allowed.test(c)) {
+            item.text.append(item.keepCase ? c : Character.toUpperCase(c));
+            Sound.play(Sound.BLIP);
+        }
+    }
+
+    private void move(int d) {
+        selected = Math.floorMod(selected + d, allItems().size());
+        Sound.play(Sound.BLIP);
+    }
+
+    private void change(Item item, int d) {
+        if (item.kind != Kind.CHOICE) return;
+        item.change.accept(d);
+        Sound.play(Sound.BLIP);
+    }
+
+    private void activate(Item item) {
+        if (busy) return;
+        Sound.play(Sound.SELECT);
+        item.action.run();
+    }
+
+    private int itemAt(MouseEvent e) {
+        double[] c = toCanvas(e.getX(), e.getY());
+        List<Item> all = allItems();
+        for (int i = 0; i < all.size(); i++) if (all.get(i).bounds.contains(c[0], c[1])) return i;
+        return -1;
+    }
+
+    // ---------------------------------------------------------------- actions
 
     private String playerName() {
-        return GameWorld.sanitizeName(nameField.getText());
-    }
-
-    private int bots() {
-        return (Integer) botsSpinner.getValue();
-    }
-
-    private Difficulty difficulty() {
-        return (Difficulty) Objects.requireNonNull(difficultyBox.getSelectedItem());
+        return GameWorld.sanitizeName(name.toString());
     }
 
     private void savePrefs() {
         prefs.put("name", playerName());
-        prefs.putInt("map", mapBox.getSelectedIndex());
-        prefs.putInt("bots", bots());
-        prefs.put("difficulty", difficulty().name());
-        prefs.put("address", addressField.getText().trim());
+        prefs.putInt("map", map);
+        prefs.putInt("bots", bots);
+        prefs.put("difficulty", difficulty.name());
+        prefs.put("address", address.toString().trim());
+        prefs.putBoolean("crt", RetroScreen.scanlines);
         try {
             prefs.putInt("port", port());
         } catch (NumberFormatException ignored) {
@@ -318,77 +301,94 @@ final class MenuPanel extends JPanel {
     }
 
     private int port() {
-        int p = Integer.parseInt(portField.getText().trim());
+        int p = Integer.parseInt(port.toString().trim());
         if (p < 1 || p > 65535) throw new NumberFormatException();
         return p;
     }
 
     private void playSolo() {
-        if (busy) return;
         savePrefs();
-        int bots = Math.max(1, bots());
-        Session s = new LocalSession(mapBox.getSelectedIndex(), List.of(playerName()), bots, difficulty(), null, null);
+        Session s = new LocalSession(map, List.of(playerName()), Math.max(1, bots), difficulty, null, null, false);
         app.startGame(s, GamePanel.Controls.MOUSE);
     }
 
     private void playSplit() {
-        if (busy) return;
         savePrefs();
-        int bots = Math.min(bots(), Rules.MAX_PLAYERS - 2);
         String p1 = playerName();
-        Session s = new LocalSession(mapBox.getSelectedIndex(), List.of(p1, p1.equals("Player 2") ? "Player 1" : "Player 2"),
-                bots, difficulty(), null, null);
+        Session s = new LocalSession(map, List.of(p1, p1.equals("Player 2") ? "Player 1" : "Player 2"),
+                Math.min(bots, Rules.MAX_PLAYERS - 2), difficulty, null, null, false);
         app.startGame(s, GamePanel.Controls.SPLIT_KEYBOARD);
     }
 
     private void host() {
-        if (busy) return;
         savePrefs();
-        int port;
+        int p;
         try {
-            port = port();
+            p = port();
         } catch (NumberFormatException e) {
-            showError("Port must be a number between 1 and 65535");
+            showError("Port must be a number from 1 to 65535");
             return;
         }
         try {
-            GameServer server = new GameServer(port, mapBox.getSelectedIndex());
-            Session s = new LocalSession(mapBox.getSelectedIndex(), List.of(playerName()), bots(), difficulty(), server,
-                    playerName());
+            GameServer server = new GameServer(p, map);
+            Session s = new LocalSession(map, List.of(playerName()), bots, difficulty, server, playerName(), true);
             app.startGame(s, GamePanel.Controls.MOUSE);
         } catch (java.io.IOException e) {
-            showError("Could not host on port " + port + ": " + e.getMessage());
+            showError("Can't host on port " + p + ": " + e.getMessage());
         }
     }
 
     private void join() {
-        if (busy) return;
         savePrefs();
-        String address = addressField.getText().trim();
-        int port;
+        String[] target = parseJoinTarget(address.toString(), port.toString());
+        if (target.length == 1) {
+            showError(target[0]);
+            selected = items.indexOf(joinField);
+            return;
+        }
+        connect(target[0], Integer.parseInt(target[1]));
+    }
+
+    /**
+     * Turns what the player typed into {host, port}: an Internet code, "host:port", or a bare host
+     * using the port setting. Returns a single-element array holding an error message otherwise.
+     */
+    static String[] parseJoinTarget(String typed, String portSetting) {
+        String target = typed.trim();
+        if (target.isEmpty()) return new String[] {"Type a code or address in JOIN first"};
+        if (InternetCode.looksLikeCode(target)) {
+            String[] decoded = InternetCode.decode(target);
+            return decoded != null ? decoded : new String[] {"That code isn't valid - check for typos"};
+        }
+        String host = target, port = portSetting.trim();
+        int colon = target.lastIndexOf(':');
+        if (colon > 0 && target.indexOf(':') == colon) {
+            host = target.substring(0, colon);
+            port = target.substring(colon + 1);
+        }
         try {
-            port = port();
+            int p = Integer.parseInt(port);
+            if (p < 1 || p > 65535) throw new NumberFormatException();
+            return new String[] {host.toLowerCase(), Integer.toString(p)};
         } catch (NumberFormatException e) {
-            showError("Port must be a number between 1 and 65535");
-            return;
+            return new String[] {"Port must be a number from 1 to 65535"};
         }
-        if (address.isEmpty()) {
-            showError("Enter the host's IP address");
-            return;
-        }
+    }
+
+    private void connect(String host, int p) {
         busy = true;
-        statusLabel.setForeground(ACCENT);
-        statusLabel.setText("Connecting to " + address + ":" + port + " ...");
-        String name = playerName();
+        message = "CONNECTING TO " + host.toUpperCase() + ":" + p + " ...";
+        messageColor = CYAN;
+        String player = playerName();
         Thread t = new Thread(() -> {
             try {
-                ClientSession s = new ClientSession(address, port, name);
-                javax.swing.SwingUtilities.invokeLater(() -> app.startGame(s, GamePanel.Controls.MOUSE));
+                ClientSession s = new ClientSession(host, p, player);
+                SwingUtilities.invokeLater(() -> app.startGame(s, GamePanel.Controls.MOUSE));
             } catch (java.io.IOException | RuntimeException e) {
                 String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                javax.swing.SwingUtilities.invokeLater(() -> {
+                SwingUtilities.invokeLater(() -> {
                     busy = false;
-                    showError("Could not join: " + msg);
+                    showError("Can't join: " + msg);
                 });
             }
         }, "lt-connect");
@@ -396,32 +396,107 @@ final class MenuPanel extends JPanel {
         t.start();
     }
 
-    /** The glowing "LASER TAG" logo. */
-    private static final class Title extends JComponent {
-        Title() {
-            setPreferredSize(new Dimension(700, 110));
+    private void refreshLan() {
+        List<LanDiscovery.Game> games = listener == null ? List.of() : listener.games();
+        Item sel = current();
+        lanItems.clear();
+        for (LanDiscovery.Game g : games.subList(0, Math.min(4, games.size()))) {
+            Item i = action(GamePanel.shortName(g.host(), 12) + "  " + g.players() + "/" + Rules.MAX_PLAYERS,
+                    "JOIN " + g.host() + " ON YOUR NETWORK (" + g.map() + ", " + g.address() + ")", () -> {
+                        savePrefs();
+                        connect(g.address(), g.port());
+                    });
+            i.color = YELLOW;
+            lanItems.add(i);
+        }
+        int keep = allItems().indexOf(sel);
+        selected = keep >= 0 ? keep : Math.min(selected, allItems().size() - 1);
+    }
+
+    // ---------------------------------------------------------------- drawing
+
+    @Override
+    protected void render(Graphics2D g) {
+        drawBackground(g);
+        drawTitle(g);
+
+        int y = 80;
+        for (int i = 0; i < items.size(); i++) {
+            if (i == 4) {
+                y += 6;
+                PixelFont.draw(g, "- SETTINGS -", LEFT, y, 1, DIM);
+                y += LINE + 2;
+            }
+            drawItem(g, items.get(i), i == selected, LEFT, y);
+            y += LINE;
         }
 
-        @Override
-        protected void paintComponent(Graphics g0) {
-            Graphics2D g = (Graphics2D) g0.create();
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            Font font = new Font(Font.SANS_SERIF, Font.BOLD | Font.ITALIC, 72);
-            g.setFont(font);
-            FontMetrics fm = g.getFontMetrics();
-            String text = "LASER TAG";
-            int x = (getWidth() - fm.stringWidth(text)) / 2, y = 78;
-            for (int i = 6; i >= 1; i--) {
-                g.setColor(new Color(PINK.getRed(), PINK.getGreen(), PINK.getBlue(), 12));
-                for (int dx = -i; dx <= i; dx += i) for (int dy = -i; dy <= i; dy += i) g.drawString(text, x + dx, y + dy);
+        // Right column: arena preview and LAN games.
+        int px = 310, py = 80;
+        PixelFont.draw(g, Arena.NAMES[map].toUpperCase(), px, py, 1, DIM);
+        g.setColor(CYAN);
+        g.drawRect(px - 2, py + 10, 153, 103);
+        g.drawImage(previews[map], px, py + 12, null);
+        int ly = py + 126;
+        PixelFont.draw(g, "ON YOUR NETWORK:", px, ly, 1, DIM);
+        ly += LINE + 2;
+        if (lanItems.isEmpty()) {
+            PixelFont.draw(g, "NO GAMES YET" + ".".repeat((int) (clock * 2) % 4), px, ly, 1, new Color(0x5F574F));
+        }
+        for (int i = 0; i < lanItems.size(); i++) {
+            drawItem(g, lanItems.get(i), items.size() + i == selected, px, ly);
+            ly += LINE;
+        }
+
+        g.setColor(new Color(0x1D2B53));
+        g.fillRect(0, 314, W, 1);
+        PixelFont.drawCentered(g, current().help, W / 2, 320, 1, GREY);
+        if (message != null) {
+            PixelFont.drawCentered(g, message.length() > 78 ? message.substring(0, 78) : message, W / 2, 333, 1, messageColor);
+        }
+        PixelFont.drawCentered(g, "ARROWS: CHOOSE   ENTER: GO   LEFT/RIGHT: CHANGE", W / 2, 347, 1, DIM);
+    }
+
+    private void drawItem(Graphics2D g, Item item, boolean sel, int x, int y) {
+        item.bounds = new Rectangle(x - 14, y - 2, x > LEFT ? 166 : 270, LINE);
+        if (sel) PixelFont.draw(g, ">", x - 10 + ((int) (clock * 4) % 2), y, 1, YELLOW);
+        Color labelColor = sel ? YELLOW : item.kind == Kind.ACTION ? item.color : GREY;
+        PixelFont.draw(g, item.label, x, y, 1, labelColor);
+        if (item.kind == Kind.CHOICE) {
+            PixelFont.draw(g, item.value.get().toUpperCase(), VALUE_X, y, 1, Color.WHITE);
+        } else if (item.kind == Kind.TEXT) {
+            String t = item.text.toString();
+            if (t.length() > 24) t = t.substring(t.length() - 24);
+            PixelFont.draw(g, t, VALUE_X, y, 1, Color.WHITE);
+            if (sel && (int) (clock * 3) % 2 == 0) {
+                g.setColor(YELLOW);
+                g.fillRect(VALUE_X + PixelFont.width(t, 1) + (t.isEmpty() ? 0 : 2), y, 5, 7);
             }
-            g.setColor(Color.WHITE);
-            g.drawString(text, x, y);
-            g.setStroke(new BasicStroke(3, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            g.setColor(ACCENT);
-            g.drawLine(x - 40, y + 16, x + fm.stringWidth(text) + 40, y + 16);
-            g.dispose();
+        }
+    }
+
+    /** An 80s perspective grid scrolling toward the viewer behind the title. */
+    private void drawBackground(Graphics2D g) {
+        int horizon = 8, bottom = 68;
+        g.setColor(new Color(0x1D2B53));
+        for (int i = 0; i < 8; i++) {
+            double t = (i + (clock * 0.8) % 1) / 8;
+            g.fillRect(0, horizon + (int) (t * t * (bottom - horizon)), W, 1);
+        }
+        for (int x = -12; x <= 12; x++) g.drawLine(W / 2 + x * 10, horizon, W / 2 + x * 48, bottom);
+        g.setColor(new Color(0x7E2553));
+        g.fillRect(0, bottom, W, 1);
+    }
+
+    private void drawTitle(Graphics2D g) {
+        String title = "LASER TAG";
+        int scale = 5, x = (W - PixelFont.width(title, scale)) / 2, y = 18;
+        for (int i = 0; i < title.length(); i++) {
+            String ch = title.substring(i, i + 1);
+            int bounce = (int) Math.round(Math.sin(clock * 4 + i * 0.6) * 2);
+            int cx = x + i * PixelFont.ADVANCE * scale;
+            PixelFont.draw(g, ch, cx + 3, y + 3 + bounce, scale, Color.BLACK);
+            PixelFont.draw(g, ch, cx, y + bounce, scale, Rules.COLORS[(i + (int) (clock * 3)) % Rules.COLORS.length]);
         }
     }
 }

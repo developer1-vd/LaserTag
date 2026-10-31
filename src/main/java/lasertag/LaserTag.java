@@ -15,8 +15,9 @@ public final class LaserTag {
 
     private LaserTag() {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setMinimumSize(new Dimension(1040, 700));
-        frame.setSize(1280, 860);
+        frame.setMinimumSize(new Dimension(500, 400));
+        frame.getContentPane().setPreferredSize(new Dimension(RetroScreen.W * 2, RetroScreen.H * 2));
+        frame.pack();
         frame.setLocationRelativeTo(null);
         menu = new MenuPanel(this);
     }
@@ -73,13 +74,19 @@ public final class LaserTag {
             Difficulty diff = args.length > 4 ? Difficulty.valueOf(args[4].toUpperCase()) : Difficulty.NORMAL;
             GameServer server = new GameServer(port, map);
             LocalSession session = new LocalSession(map, List.of(), Math.min(bots, Rules.MAX_PLAYERS), diff, server,
-                    "Dedicated server");
-            System.out.println("Laser Tag server: arena " + session.world().arena.name + ", " + session.status());
+                    "Dedicated server", true);
+            System.out.println("Laser Tag server on port " + server.port + ", arena " + session.world().arena.name);
+            System.out.println("Opening the router port and finding the public address...");
+            boolean announced = false;
             long last = System.nanoTime();
             while (true) {
                 long now = System.nanoTime();
                 session.update(Math.min(0.05, (now - last) / 1e9));
                 last = now;
+                if (!announced && !session.internet().summary().contains("CHECKING")) {
+                    announced = true;
+                    session.details().forEach(System.out::println);
+                }
                 Thread.sleep(16);
             }
         }

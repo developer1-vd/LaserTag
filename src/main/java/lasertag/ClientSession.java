@@ -109,7 +109,12 @@ final class ClientSession implements Session {
 
     @Override
     public String status() {
-        return "Connected to " + address;
+        return "CONNECTED TO " + address;
+    }
+
+    @Override
+    public java.util.List<String> details() {
+        return java.util.List.of("CONNECTED TO " + address);
     }
 
     @Override

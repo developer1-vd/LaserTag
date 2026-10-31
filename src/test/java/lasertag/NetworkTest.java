@@ -25,7 +25,7 @@ class NetworkTest {
 
         Host(int bots) throws IOException {
             server = new GameServer(0, 2);
-            session = new LocalSession(2, List.of("Host"), bots, Difficulty.EASY, server, "test");
+            session = new LocalSession(2, List.of("Host"), bots, Difficulty.EASY, server, "test", false);
             thread = new Thread(() -> {
                 while (running.get()) {
                     synchronized (session) {

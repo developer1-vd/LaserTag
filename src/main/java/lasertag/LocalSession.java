@@ -19,12 +19,17 @@ final class LocalSession implements Session {
     private final Difficulty difficulty;
     private final GameServer server;
     private final LanDiscovery.Announcer announcer;
-    private final String status;
+    private final InternetAccess internet;
+    private final String lanAddress;
     private double snapshotTimer;
     private boolean paused;
 
+    /**
+     * @param server attach to host an online match, or null for offline
+     * @param openInternet when hosting, also try to make the match reachable from the Internet
+     */
     LocalSession(int mapIndex, List<String> humans, int botCount, Difficulty difficulty, GameServer server,
-            String hostName) {
+            String hostName, boolean openInternet) {
         this.world = new GameWorld(new Arena(mapIndex));
         this.difficulty = difficulty;
         this.server = server;
@@ -40,10 +45,12 @@ final class LocalSession implements Session {
 
         if (server != null) {
             announcer = LanDiscovery.announce(server.port, world.arena.name, hostName);
-            status = "Hosting on " + LanDiscovery.localAddress() + ":" + server.port;
+            lanAddress = LanDiscovery.localAddress() + ":" + server.port;
+            internet = openInternet ? new InternetAccess(server.port) : null;
         } else {
             announcer = null;
-            status = null;
+            lanAddress = null;
+            internet = null;
         }
     }
 
@@ -119,7 +126,22 @@ final class LocalSession implements Session {
     @Override
     public String status() {
         if (server == null) return null;
-        return status + "  -  " + server.remoteCount() + " online";
+        return "LAN " + lanAddress + (internet != null ? "  " + internet.summary() : "") + "  "
+                + server.remoteCount() + " ONLINE";
+    }
+
+    @Override
+    public List<String> details() {
+        if (server == null) return List.of();
+        List<String> lines = new ArrayList<>();
+        lines.add("LAN ADDRESS    " + lanAddress + "   (SAME WIFI / NETWORK)");
+        if (internet != null) lines.addAll(internet.details());
+        return lines;
+    }
+
+    /** The Internet code once known, for printing by the dedicated server. */
+    InternetAccess internet() {
+        return internet;
     }
 
     @Override
@@ -130,6 +152,7 @@ final class LocalSession implements Session {
     @Override
     public void close() {
         if (announcer != null) announcer.close();
+        if (internet != null) internet.close();
         if (server != null) server.close();
     }
 }

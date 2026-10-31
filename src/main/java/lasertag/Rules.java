@@ -31,8 +31,8 @@ final class Rules {
     static final int SCORE_LIMIT = 15;
 
     static final Color[] COLORS = {
-        new Color(0xFF3B5C), new Color(0x3BFF7A), new Color(0xFFD23B), new Color(0x3BB6FF),
-        new Color(0xFF3BF2), new Color(0xFF8C3B), new Color(0xB07BFF), new Color(0x3BFFE8),
+        new Color(0xFF004D), new Color(0x00E436), new Color(0xFFEC27), new Color(0x29ADFF),
+        new Color(0xFF77A8), new Color(0xFFA300), new Color(0xFFCCAA), new Color(0xA77BFF),
     };
 
     static final String[] BOT_NAMES = {"Photon", "Prism", "Quark", "Lumen", "Flicker", "Spark", "Neon", "Zappy"};
