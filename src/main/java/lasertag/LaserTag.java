@@ -1,6 +1,9 @@
 package lasertag;
 
 import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
+import java.awt.Rectangle;
+import java.awt.Taskbar;
 import java.io.IOException;
 import java.util.List;
 import javax.swing.JFrame;
@@ -16,7 +19,8 @@ public final class LaserTag {
     private LaserTag() {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setMinimumSize(new Dimension(500, 400));
-        frame.getContentPane().setPreferredSize(new Dimension(RetroScreen.W * 2, RetroScreen.H * 2));
+        frame.setIconImages(AppIcon.windowIcons());
+        frame.getContentPane().setPreferredSize(initialSize());
         frame.pack();
         frame.setLocationRelativeTo(null);
         menu = new MenuPanel(this);
@@ -32,17 +36,40 @@ public final class LaserTag {
                     + "] [bots] [easy|normal|hard]]");
             return;
         }
+        // macOS reads these before the window system starts: menu bar name and a dark title bar.
+        System.setProperty("apple.awt.application.name", "Laser Tag");
+        System.setProperty("apple.awt.application.appearance", "NSAppearanceNameDarkAqua");
         try {
             UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
         } catch (Exception ignored) {
             // default look and feel is fine
         }
+        setDockIcon();
         Sound.init();
         SwingUtilities.invokeLater(() -> {
             LaserTag app = new LaserTag();
             app.showMenu();
             app.frame.setVisible(true);
         });
+    }
+
+    /** Twice the game's resolution, shrunk to fit small or highly scaled screens (e.g. a laptop at 150%). */
+    private static Dimension initialSize() {
+        Rectangle screen = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+        double fit = Math.min(screen.width * 0.9 / RetroScreen.W, (screen.height * 0.9 - 40) / RetroScreen.H);
+        double k = Math.max(1, Math.min(2, fit));
+        return new Dimension((int) (RetroScreen.W * k), (int) (RetroScreen.H * k));
+    }
+
+    /** The macOS dock (and some Linux docks) take the icon from here rather than the window. */
+    private static void setDockIcon() {
+        try {
+            if (Taskbar.isTaskbarSupported() && Taskbar.getTaskbar().isSupported(Taskbar.Feature.ICON_IMAGE)) {
+                Taskbar.getTaskbar().setIconImage(AppIcon.image(256));
+            }
+        } catch (UnsupportedOperationException | SecurityException ignored) {
+            // the window icon is still set
+        }
     }
 
     void showMenu() {

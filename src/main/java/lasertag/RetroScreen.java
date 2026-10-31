@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import javax.swing.JPanel;
 
@@ -18,8 +19,11 @@ abstract class RetroScreen extends JPanel {
     static boolean scanlines = true;
 
     private final BufferedImage canvas = new BufferedImage(W, H, BufferedImage.TYPE_INT_RGB);
+    /** Canvas-pixel size in physical screen pixels, and the canvas origin in physical pixels. */
     private double scale = 1;
     private int offsetX, offsetY;
+    /** Physical pixels per logical pixel (e.g. 1.5 with Windows display scaling at 150%, 2 on Retina). */
+    private double deviceScale = 1;
     /** Screen shake offset in canvas pixels, applied when blitting. */
     protected int shakeX, shakeY;
 
@@ -42,14 +46,22 @@ abstract class RetroScreen extends JPanel {
         render(c);
         c.dispose();
 
+        // Work in physical pixels so high-DPI displays (Windows scaling, Retina) keep pixels crisp.
+        Graphics2D g = (Graphics2D) graphics.create();
+        AffineTransform t = g.getTransform();
+        deviceScale = t.getScaleX() > 0 ? t.getScaleX() : 1;
+        g.setTransform(new AffineTransform(1, 0, 0, 1, t.getTranslateX(), t.getTranslateY()));
+        int pw = (int) Math.round(getWidth() * deviceScale), ph = (int) Math.round(getHeight() * deviceScale);
+
         // Whole-number scaling keeps every pixel the same size; small windows fall back to fractional.
-        double fit = Math.min(getWidth() / (double) W, getHeight() / (double) H);
+        double fit = Math.min(pw / (double) W, ph / (double) H);
         scale = fit >= 2 ? Math.floor(fit) : fit;
         int dw = (int) (W * scale), dh = (int) (H * scale);
-        offsetX = (getWidth() - dw) / 2;
-        offsetY = (getHeight() - dh) / 2;
+        offsetX = (pw - dw) / 2;
+        offsetY = (ph - dh) / 2;
 
-        Graphics2D g = (Graphics2D) graphics.create();
+        g.setColor(Color.BLACK);
+        g.fillRect(0, 0, pw, ph);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         int sx = (int) (shakeX * scale), sy = (int) (shakeY * scale);
         g.drawImage(canvas, offsetX + sx, offsetY + sy, dw, dh, null);
@@ -63,6 +75,6 @@ abstract class RetroScreen extends JPanel {
 
     /** Converts a point on this component to canvas pixel coordinates. */
     protected double[] toCanvas(int x, int y) {
-        return new double[] {(x - offsetX) / scale, (y - offsetY) / scale};
+        return new double[] {(x * deviceScale - offsetX) / scale, (y * deviceScale - offsetY) / scale};
     }
 }

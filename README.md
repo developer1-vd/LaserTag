@@ -10,7 +10,35 @@ Internet or your home network.
 Everything is drawn at a low 480x360 resolution and scaled up with chunky pixels and CRT
 scanlines, using a hand-drawn bitmap font and chiptune-style sound effects.
 
-## Quick start
+## Download and play
+
+Ready-made apps with Java built in are attached to each release on the
+[Releases page](https://github.com/developer1-vd/LaserTag/releases). Nothing else needs
+installing.
+
+| System | Download | How to install |
+| --- | --- | --- |
+| **Windows** 10/11 | `LaserTag-…-windows-x64.msi` | Run it and follow the steps. Laser Tag appears in the Start menu and on the desktop. Or unzip `…-windows-x64.zip` and run `LaserTag.exe`. |
+| **macOS** (Apple Silicon: M1 or newer) | `LaserTag-…-macos-arm64.dmg` | Open it and drag Laser Tag into Applications. |
+| **macOS** (Intel) | `LaserTag-…-macos-x64.dmg` | Same as above. |
+| **Linux** (Ubuntu, Debian, Mint, Pop!_OS…) | `lasertag_…_amd64.deb` | `sudo apt install ./lasertag_…_amd64.deb`, then find Laser Tag in your app menu. |
+| **Linux** (any) | `LaserTag-…-linux-x64.tar.gz` | Extract it and run `LaserTag/bin/LaserTag`. |
+| Anything with Java 17+ | `LaserTag-….jar` | `java -jar LaserTag-….jar` |
+
+### First launch
+
+The apps aren't code-signed, so your system may warn you the first time:
+
+- **Windows:** if *"Windows protected your PC"* appears, click **More info → Run anyway**.
+- **macOS:** if it says Laser Tag *"can't be opened"* or *"Apple could not verify"* it,
+  open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+  Or run `xattr -dr com.apple.quarantine "/Applications/LaserTag.app"` in Terminal.
+- **Hosting online:** the first time you host, Windows and macOS ask whether Laser Tag may
+  accept network connections. Click **Allow** (on Windows, tick *Private networks*, and
+  also *Public networks* if you want to host over the Internet). Otherwise other players
+  can't join.
+
+## Run from source
 
 You need a **JDK, version 17 or newer** (check with `javac -version`). Nothing else.
 
@@ -22,9 +50,9 @@ macOS / Linux:
 
 Windows: double-click `run.bat`.
 
-The script compiles the game and starts it. See **[BUILDING.md](BUILDING.md)** for
-installing Java, building by hand or with Maven, running the tests, making a stand-alone
-app to share, and troubleshooting.
+See **[BUILDING.md](BUILDING.md)** for installing Java, building by hand or with Maven,
+running the tests, building the Windows/macOS/Linux apps yourself, automatic releases, and
+troubleshooting.
 
 ## How to play
 

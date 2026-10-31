@@ -9,8 +9,9 @@ only need it to run the automated tests.
 - [3. Build and run (easiest)](#3-build-and-run-easiest)
 - [4. Build by hand with javac](#4-build-by-hand-with-javac)
 - [5. Build and test with Maven](#5-build-and-test-with-maven)
-- [6. Share the game with friends](#6-share-the-game-with-friends)
-- [7. Troubleshooting](#7-troubleshooting)
+- [6. Build Windows, macOS and Linux apps](#6-build-windows-macos-and-linux-apps)
+- [7. Automatic builds and releases (GitHub Actions)](#7-automatic-builds-and-releases-github-actions)
+- [8. Troubleshooting](#8-troubleshooting)
 
 ## 1. Install a JDK
 
@@ -155,46 +156,69 @@ The code is in `src/main/java/lasertag` and the tests are in `src/test/java/lase
 Java IDE (IntelliJ IDEA, Eclipse, VS Code with the Java extensions) can open the project
 folder directly as a Maven project. Run the `lasertag.LaserTag` class to start the game.
 
-## 6. Share the game with friends
+## 6. Build Windows, macOS and Linux apps
 
-`lasertag.jar` holds the whole game in one file. Anyone with Java 17 or newer installed
-(a JRE is enough) can play it by double-clicking it, or with:
-
-```bash
-java -jar lasertag.jar
-```
-
-To make a version that doesn't need Java installed, use `jpackage`, which comes with the
-JDK. It bundles a Java runtime, so the result is about 150 MB. Build the jar first (step 3
-or 4), then put it in a folder by itself.
-
-macOS / Linux:
+To make apps that **don't need Java installed**, run the packaging tool on each operating
+system you want to support. It's a single Java file, so the same command works everywhere:
 
 ```bash
-mkdir -p dist-input && cp build/lasertag.jar dist-input/
+java packaging/Package.java
 ```
 
-```bash
-jpackage --input dist-input --main-jar lasertag.jar --main-class lasertag.LaserTag --name LaserTag --type app-image --dest dist
-```
+It compiles the game, draws the app icon, bundles a trimmed Java runtime (about 30 MB) with
+`jpackage`, and puts everything in `dist/`:
 
-Windows (PowerShell):
+| Built on | You get | Notes |
+| --- | --- | --- |
+| Windows | `LaserTag-VERSION-windows-x64.zip` (unzip and run `LaserTag.exe`) and `LaserTag-VERSION-windows-x64.msi` (installer with Start-menu and desktop shortcuts) | The `.msi` needs the [WiX Toolset 3](https://github.com/wixtoolset/wix3/releases) on your PATH |
+| macOS | `LaserTag-VERSION-macos-ARCH.dmg` (drag to Applications) and `LaserTag-VERSION-macos-ARCH.zip` | ARCH is `arm64` on Apple Silicon and `x64` on Intel Macs. Each only runs on its own type of Mac. |
+| Linux | `lasertag_VERSION_amd64.deb` (adds a menu entry) and `LaserTag-VERSION-linux-x64.tar.gz` (extract and run `LaserTag/bin/LaserTag`) | The `.deb` needs `fakeroot` (`sudo apt install fakeroot`). An `.rpm` is also built if `rpmbuild` is installed. |
+| any | `LaserTag-VERSION.jar` | Runs anywhere with Java 17+ installed: `java -jar LaserTag-VERSION.jar` |
 
-```powershell
-New-Item -ItemType Directory -Force dist-input; Copy-Item build\lasertag.jar dist-input\
-```
+`jpackage` can only build for the system it runs on, so you need a Windows PC, a Mac and a
+Linux machine (or let GitHub build them all, see step 7).
 
-```powershell
-jpackage --input dist-input --main-jar lasertag.jar --main-class lasertag.LaserTag --name LaserTag --type app-image --dest dist
-```
+Options:
 
-This creates `dist/LaserTag` (`LaserTag.app` on macOS) with a launcher you can zip up and
-share. `jpackage` builds for the system it runs on, so build on Windows for Windows players,
-on macOS for Mac players, and so on. To make an installer instead, change `--type`:
-`msi` or `exe` on Windows (needs the [WiX Toolset](https://wixtoolset.org)), `dmg` or
-`pkg` on macOS, `deb` or `rpm` on Linux.
+| Option | What it does |
+| --- | --- |
+| `--no-installer` | Only build the zip/tar.gz and jar, skipping the `.msi`/`.dmg`/`.deb` |
+| `--strict` | Fail instead of warning when an installer can't be built |
+| `--version 1.2.3` | Use this version instead of the one in `pom.xml` |
 
-## 7. Troubleshooting
+## 7. Automatic builds and releases (GitHub Actions)
+
+The workflow in `.github/workflows/build.yml` runs on GitHub's Windows, macOS and Linux
+machines:
+
+- **Every push and pull request:** runs the tests on all three systems, then builds the apps
+  for Windows (x64), macOS (Apple Silicon and Intel) and Linux (x64). Download them from the
+  run's **Artifacts** section on the repository's *Actions* tab.
+- **Pushing a version tag:** also publishes everything as a GitHub Release that players can
+  download from the repository's *Releases* page:
+
+  ```bash
+  git tag v1.0.0
+  ```
+
+  ```bash
+  git push origin v1.0.0
+  ```
+
+  The tag (without the `v`) becomes the version shown in the installers.
+
+The Linux packages are built on Ubuntu 22.04 so the `.deb` installs on that release and
+newer ones (and on Debian 12 or later).
+
+### Signing
+
+The apps aren't code-signed, which costs money on Windows and macOS. Players get a one-time
+warning when they first open the game. The README explains how to get past it. To sign
+releases, add your certificate to the workflow and pass the matching `jpackage` options in
+`packaging/Package.java`: `--mac-sign` with `--mac-signing-key-user-name` on macOS. On
+Windows, sign the `.msi` with `signtool` after it is built.
+
+## 8. Troubleshooting
 
 | Problem | Fix |
 | --- | --- |
@@ -206,4 +230,7 @@ on macOS for Mac players, and so on. To make an installer instead, change `--typ
 | Maven fails to download dependencies | Check your internet connection or proxy settings. You can still build and play without Maven (step 3 or 4). |
 | `Address already in use` when hosting | Another program, or another copy of the game, is using the port. Pick a different *Port* in the menu. |
 | No sound | The game runs silently if Java can't open an audio device. Check your system's sound output, or press `M` in case sound is muted. |
-| The window is tiny or blurry | The game scales by whole numbers for crisp pixels. Make the window at least 960×720 for 2× scale. |
+| The window is tiny or blurry | The game scales by whole numbers for crisp pixels, including on high-DPI screens. Make the window bigger (or maximise it) for a larger whole-number scale. |
+| `Could not build the msi installer` | Install the [WiX Toolset 3](https://github.com/wixtoolset/wix3/releases) and add its `bin` folder to your PATH, or use `--no-installer` and share the zip. |
+| `Can not find fakeroot` when building on Linux | `sudo apt install fakeroot` (or use `--no-installer` and share the tar.gz). |
+| `.deb` install fails with `No writable system menu directory found` | The machine has no desktop environment (for example, a server). Use the tar.gz there instead. |
