@@ -11,7 +11,8 @@ only need it to run the automated tests.
 - [5. Build and test with Maven](#5-build-and-test-with-maven)
 - [6. Build Windows, macOS and Linux apps](#6-build-windows-macos-and-linux-apps)
 - [7. Automatic builds and releases (GitHub Actions)](#7-automatic-builds-and-releases-github-actions)
-- [8. Troubleshooting](#8-troubleshooting)
+- [8. The web version](#8-the-web-version)
+- [9. Troubleshooting](#9-troubleshooting)
 
 ## 1. Install a JDK
 
@@ -223,7 +224,37 @@ releases, add your certificate to the workflow and pass the matching `jpackage` 
 `packaging/Package.java`: `--mac-sign` with `--mac-signing-key-user-name` on macOS. On
 Windows, sign the `.msi` with `signtool` after it is built.
 
-## 8. Troubleshooting
+## 8. The web version
+
+The browser version lives in `web/`. Its Java code (`web/src/main/java`) is compiled to
+JavaScript with [TeaVM](https://teavm.org) together with the shared game code in
+`src/main/java`. The page and the small JavaScript layer for the canvas, input, sound and
+saved settings are in `web/src/main/webapp`. Build it with Maven:
+
+```bash
+mvn -f web/pom.xml package
+```
+
+The finished site is in `web/target/site`. Browsers won't run it from a `file://` address,
+so serve the folder locally and open <http://localhost:8000>:
+
+```bash
+python3 -m http.server 8000 --directory web/target/site
+```
+
+Shared game code must stay browser-friendly. It can't use `java.awt`, Swing, `java.net` or
+`String.format`, and it draws only through the `Screen` interface. Desktop-only code (the
+menu, sound, networking) is never reached from `WebGame`, so TeaVM leaves it out. CI builds
+the web version on every push, so a change that breaks it shows up in the pull request.
+
+### Publishing on GitHub Pages
+
+`.github/workflows/pages.yml` builds the web version and publishes it to GitHub Pages
+whenever `main` changes. The first time, Pages may need turning on: in the repository go to
+**Settings → Pages** and set **Source** to **GitHub Actions**, then re-run the *Web version*
+workflow from the Actions tab.
+
+## 9. Troubleshooting
 
 | Problem | Fix |
 | --- | --- |

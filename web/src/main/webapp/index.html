@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="description" content="Laser Tag: a retro arcade laser tag game. Play against bots or a friend on the same keyboard, right in your browser.">
+<title>Laser Tag</title>
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #wrap { position: relative; line-height: 0; }
+  #screen { image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; cursor: crosshair; outline: none; }
+  #crt { position: absolute; inset: 0; pointer-events: none; }
+  #error { display: none; position: absolute; inset: 0; color: #ff004d; font: 16px monospace; line-height: 1.4;
+           padding: 24px; text-align: center; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="screen" width="480" height="360" tabindex="0" aria-label="Laser Tag game"></canvas>
+  <div id="crt"></div>
+</div>
+<div id="error"></div>
+<noscript><p style="color:#fff;font:16px monospace;padding:24px">Laser Tag needs JavaScript to run.</p></noscript>
+<script src="glue.js"></script>
+<script src="lasertag.js"></script>
+<script>
+  try {
+    main();
+  } catch (e) {
+    LT.fail("Laser Tag couldn't start in this browser: " + e);
+  }
+</script>
+</body>
+</html>
