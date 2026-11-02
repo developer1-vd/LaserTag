@@ -10,6 +10,13 @@ Internet or your home network.
 Everything is drawn at a low 480x360 resolution and scaled up with chunky pixels and CRT
 scanlines, using a hand-drawn bitmap font and chiptune-style sound effects.
 
+## Play in your browser
+
+**[Play Laser Tag on the web](https://developer1-vd.github.io/LaserTag/)**. Nothing to
+install. It has solo vs bots and two players on one keyboard, and works with touch on
+phones and tablets (left thumb moves, right thumb aims and fires). Online play needs the
+desktop app below, because browsers can't open the network connections it uses.
+
 ## Download and play
 
 Ready-made apps with Java built in are attached to each release on the
@@ -118,6 +125,11 @@ to open its port on the router and prints its Internet code. Run it on a VPS or 
 machine for a server that anyone can always join.
 
 ## How it works
+
+- The desktop and web versions share the same game code. `GameRenderer` draws through a
+  small `Screen` interface, implemented with Swing on the desktop and an HTML canvas in the
+  browser. The web version (`web/`) is compiled from Java to JavaScript with
+  [TeaVM](https://teavm.org).
 
 - `GameWorld` holds the whole match and runs the simulation. Offline, it runs on your
   computer. Online, the host's copy is the only one that runs it.

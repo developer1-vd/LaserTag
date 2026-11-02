@@ -12,7 +12,10 @@ final class Sound {
     private static volatile Clip[][] pools;
     static volatile boolean muted;
 
-    static final int ZAP = 0, TAG = 1, ROUND = 2, BLIP = 3, SELECT = 4;
+    static final int ZAP = Sfx.ZAP, TAG = Sfx.TAG, ROUND = Sfx.ROUND, BLIP = Sfx.BLIP, SELECT = Sfx.SELECT;
+
+    /** The desktop sound player as an {@link Sfx}, for the shared renderer. */
+    static final Sfx SFX = Sound::play;
 
     /** Synthesizes the clips in the background so start-up isn't delayed. */
     static void init() {

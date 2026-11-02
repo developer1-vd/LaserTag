@@ -1,7 +1,5 @@
 package lasertag;
 
-import java.awt.Color;
-
 /** Shared tuning constants. Host and clients must agree on these. */
 final class Rules {
     private Rules() {}
@@ -30,9 +28,9 @@ final class Rules {
     static final double ROUND_OVER_TIME = 8;
     static final int SCORE_LIMIT = 15;
 
-    static final Color[] COLORS = {
-        new Color(0xFF004D), new Color(0x00E436), new Color(0xFFEC27), new Color(0x29ADFF),
-        new Color(0xFF77A8), new Color(0xFFA300), new Color(0xFFCCAA), new Color(0xA77BFF),
+    /** Player colours, 0xRRGGBB, indexed by {@link Player#color}. */
+    static final int[] COLORS = {
+        0xFF004D, 0x00E436, 0xFFEC27, 0x29ADFF, 0xFF77A8, 0xFFA300, 0xFFCCAA, 0xA77BFF,
     };
 
     static final String[] BOT_NAMES = {"Photon", "Prism", "Quark", "Lumen", "Flicker", "Spark", "Neon", "Zappy"};

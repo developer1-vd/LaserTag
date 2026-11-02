@@ -308,15 +308,15 @@ final class MenuPanel extends RetroScreen {
 
     private void playSolo() {
         savePrefs();
-        Session s = new LocalSession(map, List.of(playerName()), Math.max(1, bots), difficulty, null, null, false);
+        Session s = new OfflineSession(map, List.of(playerName()), Math.max(1, bots), difficulty);
         app.startGame(s, GamePanel.Controls.MOUSE);
     }
 
     private void playSplit() {
         savePrefs();
         String p1 = playerName();
-        Session s = new LocalSession(map, List.of(p1, p1.equals("Player 2") ? "Player 1" : "Player 2"),
-                Math.min(bots, Rules.MAX_PLAYERS - 2), difficulty, null, null, false);
+        Session s = new OfflineSession(map, List.of(p1, p1.equals("Player 2") ? "Player 1" : "Player 2"),
+                Math.min(bots, Rules.MAX_PLAYERS - 2), difficulty);
         app.startGame(s, GamePanel.Controls.SPLIT_KEYBOARD);
     }
 
@@ -496,7 +496,7 @@ final class MenuPanel extends RetroScreen {
             int bounce = (int) Math.round(Math.sin(clock * 4 + i * 0.6) * 2);
             int cx = x + i * PixelFont.ADVANCE * scale;
             PixelFont.draw(g, ch, cx + 3, y + 3 + bounce, scale, Color.BLACK);
-            PixelFont.draw(g, ch, cx, y + bounce, scale, Rules.COLORS[(i + (int) (clock * 3)) % Rules.COLORS.length]);
+            PixelFont.draw(g, ch, cx, y + bounce, scale, new Color(Rules.COLORS[(i + (int) (clock * 3)) % Rules.COLORS.length]));
         }
     }
 }
