@@ -29,3 +29,8 @@ target/
 
 # Packaging output
 dist/
+
+# Flatpak build output
+build-flatpak/
+.flatpak-builder/
+flatpak-repo/

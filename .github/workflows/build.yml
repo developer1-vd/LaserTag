@@ -98,10 +98,40 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  flatpak:
+    name: Flatpak
+    needs: test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Flatpak tools
+        run: sudo apt-get update && sudo apt-get install -y flatpak flatpak-builder
+      - name: Build the Flatpak
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          VERSION="$INPUT_VERSION"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; fi
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -A1 '<artifactId>lasertag</artifactId>' pom.xml | sed -n 's:.*<version>\(.*\)</version>.*:\1:p')
+          fi
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak-builder --user --install-deps-from=flathub --disable-rofiles-fuse --force-clean \
+            --repo=flatpak-repo build-flatpak packaging/flatpak/io.github.developer1_vd.LaserTag.yml
+          mkdir -p dist
+          # --runtime-repo lets the bundle fetch the Freedesktop runtime from Flathub when installed.
+          flatpak build-bundle flatpak-repo "dist/LaserTag-$VERSION-linux-x64.flatpak" io.github.developer1_vd.LaserTag \
+            --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LaserTag-Flatpak
+          path: dist/*.flatpak
+          if-no-files-found: error
+
   release:
     name: Publish release
     if: startsWith(github.ref, 'refs/tags/v') || inputs.version != ''
-    needs: package
+    needs: [package, flatpak]
     runs-on: ubuntu-latest
     permissions:
       contents: write

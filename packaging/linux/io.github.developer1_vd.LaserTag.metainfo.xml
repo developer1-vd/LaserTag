@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.developer1_vd.LaserTag</id>
+  <name>Laser Tag</name>
+  <summary>Retro arcade laser tag with bots and online play</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <developer id="io.github.developer1_vd">
+    <name>developer1-vd</name>
+  </developer>
+
+  <description>
+    <p>
+      A fast, top-down arena shooter with an 80s arcade look. Tag your opponents with a laser
+      that ricochets off walls, then dodge their shots while your energy recharges.
+    </p>
+    <ul>
+      <li>Play solo against up to seven bots at three skill levels</li>
+      <li>Two players can share one keyboard</li>
+      <li>Host or join online games over the Internet with a short join code, or find games on your home network</li>
+      <li>Three arenas, chunky pixel graphics, CRT scanlines and chiptune sound effects</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.developer1_vd.LaserTag.desktop</launchable>
+  <url type="homepage">https://github.com/developer1-vd/LaserTag</url>
+  <url type="bugtracker">https://github.com/developer1-vd/LaserTag/issues</url>
+  <url type="vcs-browser">https://github.com/developer1-vd/LaserTag</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>A match against bots</caption>
+      <image>https://raw.githubusercontent.com/developer1-vd/LaserTag/main/docs/screenshots/game.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The title screen</caption>
+      <image>https://raw.githubusercontent.com/developer1-vd/LaserTag/main/docs/screenshots/menu.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The end of a round</caption>
+      <image>https://raw.githubusercontent.com/developer1-vd/LaserTag/main/docs/screenshots/round-over.png</image>
+    </screenshot>
+  </screenshots>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#29adff</color>
+    <color type="primary" scheme_preference="dark">#1d2b53</color>
+  </branding>
+
+  <requires>
+    <display_length compare="ge">480</display_length>
+  </requires>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-cartoon">mild</content_attribute>
+  </content_rating>
+
+  <releases>
+    <release version="1.0.0" date="2026-10-31">
+      <description>
+        <p>First release: solo and two-player modes, bots, online play with join codes, and native apps for Windows, macOS and Linux.</p>
+      </description>
+    </release>
+  </releases>
+</component>

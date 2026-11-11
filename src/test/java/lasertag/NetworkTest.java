@@ -97,10 +97,12 @@ class NetworkTest {
                     Player real = host.read(() -> host.session.world().players.get(id));
                     return mine != null && Math.hypot(mine.x - real.x, mine.y - real.y) < 40;
                 }, "client position to follow the host");
+                assertEquals(2, (int) host.read(() -> host.session.world().players.size()));
             } finally {
                 client.close();
             }
-            waitFor(() -> host.read(() -> host.session.world().players.size()) == 2, "host to drop the client");
+            // Only the host's own player is left once the guest disconnects.
+            waitFor(() -> host.read(() -> host.session.world().players.size()) == 1, "host to drop the client");
         }
     }
 

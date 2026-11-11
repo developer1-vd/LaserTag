@@ -12,7 +12,8 @@ only need it to run the automated tests.
 - [6. Build Windows, macOS and Linux apps](#6-build-windows-macos-and-linux-apps)
 - [7. Automatic builds and releases (GitHub Actions)](#7-automatic-builds-and-releases-github-actions)
 - [8. The web version](#8-the-web-version)
-- [9. Troubleshooting](#9-troubleshooting)
+- [9. The Flatpak](#9-the-flatpak)
+- [10. Troubleshooting](#10-troubleshooting)
 
 ## 1. Install a JDK
 
@@ -254,7 +255,62 @@ whenever `main` changes. The first time, Pages may need turning on: in the repos
 **Settings → Pages** and set **Source** to **GitHub Actions**, then re-run the *Web version*
 workflow from the Actions tab.
 
-## 9. Troubleshooting
+## 9. The Flatpak
+
+The Flatpak manifest is `packaging/flatpak/io.github.developer1_vd.LaserTag.yml`. It builds
+the game from this checkout with the Freedesktop runtime and its OpenJDK 21 SDK extension,
+and bundles a trimmed Java runtime made with `jlink`. The desktop entry, AppStream metadata
+and icon it installs are in `packaging/linux/`.
+
+You need `flatpak` and `flatpak-builder`. On Ubuntu or Debian, install them with
+`sudo apt install flatpak flatpak-builder`; on Fedora, with
+`sudo dnf install flatpak flatpak-builder`. Then add Flathub, which provides the runtime:
+
+```bash
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+```
+
+Build it and install it for your user:
+
+```bash
+flatpak-builder --user --install-deps-from=flathub --install --force-clean build-flatpak packaging/flatpak/io.github.developer1_vd.LaserTag.yml
+```
+
+Run it:
+
+```bash
+flatpak run io.github.developer1_vd.LaserTag
+```
+
+To make a single `.flatpak` file to share, build into a local repository and bundle it:
+
+```bash
+flatpak-builder --user --install-deps-from=flathub --force-clean --repo=flatpak-repo build-flatpak packaging/flatpak/io.github.developer1_vd.LaserTag.yml
+```
+
+```bash
+flatpak build-bundle flatpak-repo LaserTag.flatpak io.github.developer1_vd.LaserTag --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo
+```
+
+CI builds the Flatpak on every push and attaches it to every release.
+
+The sandbox allows the display (X11, which Java uses; Wayland desktops run it through
+XWayland), sound, and network access for online play. Settings are saved in
+`~/.var/app/io.github.developer1_vd.LaserTag/config/java`.
+
+When you release a new version, add a `<release>` entry to
+`packaging/linux/io.github.developer1_vd.LaserTag.metainfo.xml` so software centres show it.
+If you change the icon in `AppIcon.java`, regenerate
+`packaging/linux/io.github.developer1_vd.LaserTag.png` from `AppIcon.image(256)`. A test
+fails if the two differ.
+
+### Publishing on Flathub
+
+To list the game in Flathub (and so in GNOME Software, KDE Discover and others), submit the
+manifest to [Flathub](https://docs.flathub.org/docs/for-app-authors/submission). For that,
+change its `sources` from the local folder to this repository's git URL and a release tag.
+
+## 10. Troubleshooting
 
 | Problem | Fix |
 | --- | --- |
