@@ -52,6 +52,20 @@ class AppIconTest {
         assertEquals(7, entries);
     }
 
+    /** The Linux/Flatpak icon is a committed file; it must match what AppIcon draws. */
+    @Test
+    void committedLinuxIconMatchesAppIcon() throws Exception {
+        BufferedImage committed = ImageIO.read(Path.of("packaging/linux/io.github.developer1_vd.LaserTag.png").toFile());
+        BufferedImage drawn = AppIcon.image(256);
+        assertEquals(drawn.getWidth(), committed.getWidth());
+        for (int y = 0; y < 256; y += 3) {
+            for (int x = 0; x < 256; x += 3) {
+                assertEquals(drawn.getRGB(x, y), committed.getRGB(x, y),
+                        "packaging/linux icon is out of date at " + x + "," + y + " - regenerate it from AppIcon.image(256)");
+            }
+        }
+    }
+
     @Test
     void writesAllIconFilesWithHardPixelEdges(@TempDir Path dir) throws Exception {
         AppIcon.writeIconFiles(dir);

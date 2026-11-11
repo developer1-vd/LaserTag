@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Laser Tag
+GenericName=Arcade Shooter
+Comment=Retro laser tag arena game with bots and online play
+Exec=lasertag
+Icon=io.github.developer1_vd.LaserTag
+Terminal=false
+Categories=Game;ActionGame;
+Keywords=laser;tag;arcade;retro;shooter;multiplayer;bots;
+StartupWMClass=lasertag-LaserTag

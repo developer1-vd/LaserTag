@@ -29,6 +29,7 @@ installing.
 | **macOS** (Apple Silicon: M1 or newer) | `LaserTag-…-macos-arm64.dmg` | Open it and drag Laser Tag into Applications. |
 | **macOS** (Intel) | `LaserTag-…-macos-x64.dmg` | Same as above. |
 | **Linux** (Ubuntu, Debian, Mint, Pop!_OS…) | `lasertag_…_amd64.deb` | `sudo apt install ./lasertag_…_amd64.deb`, then find Laser Tag in your app menu. |
+| **Linux** (any distro, sandboxed) | `LaserTag-…-linux-x64.flatpak` | `flatpak install --user LaserTag-…-linux-x64.flatpak`, then find Laser Tag in your app menu, or run `flatpak run io.github.developer1_vd.LaserTag`. Needs [Flatpak](https://flatpak.org/setup/), which most distros include. |
 | **Linux** (any) | `LaserTag-…-linux-x64.tar.gz` | Extract it and run `LaserTag/bin/LaserTag`. |
 | Anything with Java 17+ | `LaserTag-….jar` | `java -jar LaserTag-….jar` |
 
