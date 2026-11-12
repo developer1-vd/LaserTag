@@ -306,9 +306,55 @@ fails if the two differ.
 
 ### Publishing on Flathub
 
-To list the game in Flathub (and so in GNOME Software, KDE Discover and others), submit the
-manifest to [Flathub](https://docs.flathub.org/docs/for-app-authors/submission). For that,
-change its `sources` from the local folder to this repository's git URL and a release tag.
+Flathub builds apps from its own copy of the manifest, which lives in a repository under the
+[Flathub organisation](https://github.com/flathub). That copy is the same as
+`packaging/flatpak/io.github.developer1_vd.LaserTag.yml`, except that its `sources` point at
+a tagged release of this repository instead of the local folder:
+
+```yaml
+    sources:
+      - type: git
+        url: https://github.com/developer1-vd/LaserTag.git
+        tag: v1.1.0
+        commit: <the full commit hash that v1.1.0 points to>
+        x-checker-data:
+          type: git
+          tag-pattern: ^v([\d.]+)$
+```
+
+Submitting for the first time:
+
+1. Publish the release on GitHub (step 7) so the tag exists. Check that the screenshot links
+   in the metainfo file open.
+2. Fork [flathub/flathub](https://github.com/flathub/flathub) and make a branch from its
+   `new-pr` branch.
+3. Add the Flathub manifest as `io.github.developer1_vd.LaserTag.yml` at the top of the
+   branch, and open a pull request against `new-pr`, following
+   [Flathub's submission guide](https://docs.flathub.org/docs/for-app-authors/submission).
+4. Reviewers comment on the pull request. Once it's accepted, Flathub creates the repository
+   `flathub/io.github.developer1_vd.LaserTag` and gives you write access to it.
+
+For later versions, publish a new release here and add a `<release>` entry to the metainfo
+file. Then update `tag` and `commit` in the Flathub repository's manifest. Flathub's update
+bot reads `x-checker-data` and can open that pull request for you.
+
+Before submitting, check the manifest and a build with Flathub's linter:
+
+```bash
+flatpak install --user flathub org.flatpak.Builder
+```
+
+```bash
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest packaging/flatpak/io.github.developer1_vd.LaserTag.yml
+```
+
+```bash
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo flatpak-repo
+```
+
+A local build reports `appstream-external-screenshot-url` and
+`appstream-remote-icon-not-mirrored`, because Flathub mirrors the screenshots and icons on
+its own build servers. Any other error needs fixing before you submit.
 
 ## 10. Troubleshooting
 
