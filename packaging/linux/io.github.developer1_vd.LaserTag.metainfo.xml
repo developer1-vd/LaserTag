@@ -30,15 +30,15 @@
   <screenshots>
     <screenshot type="default">
       <caption>A match against bots</caption>
-      <image>https://raw.githubusercontent.com/developer1-vd/LaserTag/main/docs/screenshots/game.png</image>
+      <image>https://raw.githubusercontent.com/developer1-vd/LaserTag/v1.1.0/docs/screenshots/game.png</image>
     </screenshot>
     <screenshot>
       <caption>The title screen</caption>
-      <image>https://raw.githubusercontent.com/developer1-vd/LaserTag/main/docs/screenshots/menu.png</image>
+      <image>https://raw.githubusercontent.com/developer1-vd/LaserTag/v1.1.0/docs/screenshots/menu.png</image>
     </screenshot>
     <screenshot>
       <caption>The end of a round</caption>
-      <image>https://raw.githubusercontent.com/developer1-vd/LaserTag/main/docs/screenshots/round-over.png</image>
+      <image>https://raw.githubusercontent.com/developer1-vd/LaserTag/v1.1.0/docs/screenshots/round-over.png</image>
     </screenshot>
   </screenshots>
 
@@ -60,6 +60,11 @@
   </content_rating>
 
   <releases>
+    <release version="1.1.0" date="2026-11-12">
+      <description>
+        <p>Laser Tag now runs in your web browser, with touch controls for phones and tablets, and is available as a Flatpak for Linux.</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-10-31">
       <description>
         <p>First release: solo and two-player modes, bots, online play with join codes, and native apps for Windows, macOS and Linux.</p>
